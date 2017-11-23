@@ -114,6 +114,7 @@ public class BlurPostProcess : MonoBehaviour {
         _Offset = Shader.PropertyToID("_Offset");
         _Totalweight = Shader.PropertyToID("_Totalweight");
         _Weights = Shader.PropertyToID("_Weights");
+        material = new Material(Shader.Find("Hidden/NewImageEffectShader"));
 
         OnValidate();
     }
@@ -139,11 +140,11 @@ public class BlurPostProcess : MonoBehaviour {
         for (int i = 0; i < interation; i++)
         {
             ClearBuffer(swich ? tempsRT[1] : tempsRT[0]);
-            blur.SetFloat(_Offset, i/resolutionReduce+Offset);
+            blur.SetFloat(_Offset, i+Offset);
             Graphics.Blit(swich ? tempsRT[0] : tempsRT[1], swich ? tempsRT[1] : tempsRT[0], blur);
             swich = !swich;
         }
-        Graphics.Blit(swich ? tempsRT[0] : tempsRT[1], destination);
+        Graphics.Blit(swich ? tempsRT[1] : tempsRT[0], destination);
     }
 
     void DualBlur(RenderTexture source,RenderTexture destination)
@@ -165,7 +166,7 @@ public class BlurPostProcess : MonoBehaviour {
         
         Graphics.Blit(tempsRT[1], destination, blur, 1);
     }
-
+/* 
     void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         Graphics.SetRenderTarget(tempsRT[0]);
@@ -181,6 +182,32 @@ public class BlurPostProcess : MonoBehaviour {
             case Kernel.Dual:
                 DualBlur(source, destination); break;
         }
+    }
+*/
+
+    public RenderTexture destination;
+    public Material material;
+
+    void OnPreRender()
+    {
+        Camera.main.targetTexture = tempsRT[0];
+        destination = RenderTexture.GetTemporary(Screen.width / resolutionReduce,Screen.height / resolutionReduce);
+    }
+    void OnPostRender()
+    {
+        Camera.main.targetTexture = null;
+        switch (type)
+        {
+            case Kernel.Gauss:
+                GaussBlur(destination); break;
+            case Kernel.Kawase:
+                KawaseBlur(destination); break;
+            case Kernel.Dual:
+                DualBlur(tempsRT[0], destination); break;
+        }
+        Graphics.Blit(destination,null as RenderTexture);
+
+        RenderTexture.ReleaseTemporary(destination);
     }
 
     public void OnValidate()
