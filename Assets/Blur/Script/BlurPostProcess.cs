@@ -114,7 +114,7 @@ public class BlurPostProcess : MonoBehaviour {
         _Offset = Shader.PropertyToID("_Offset");
         _Totalweight = Shader.PropertyToID("_Totalweight");
         _Weights = Shader.PropertyToID("_Weights");
-        material = new Material(Shader.Find("Hidden/NewImageEffectShader"));
+        //material = new Material(Shader.Find("Hidden/NewImageEffectShader"));
 
         OnValidate();
     }
