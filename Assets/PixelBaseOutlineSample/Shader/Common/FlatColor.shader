@@ -7,7 +7,8 @@
 	SubShader
 	{ 
 		Tags{ "RenderType" = "FlatColor"  }
-
+		// Blend SrcAlpha OneMinusSrcAlpha
+		//for command buffer transparent
 		Pass
 		{
 			CGPROGRAM
@@ -34,10 +35,10 @@
 			fixed4 frag (v2f i) : COLOR
 			{
 				fixed4 color = tex2D(_MainTex,i.uv);
-				if (distance(color.rgb,0) <= 0.000001)
-					color = 0;
-				else
-					color = 1;
+				 if (distance(color.a,0) <= 0.000001)
+				 	color = 0;
+				 else
+				 	color = 1;
 				return color;
 			}
 			ENDCG
@@ -91,8 +92,108 @@
 			}
 			ENDCG
 		}
+
+		//for command buffer alpha
+		Pass
+		{
+			cull off
+			CGPROGRAM
+
+			#pragma vertex vert
+			#pragma fragment frag
+			#include "UnityCG.cginc"
+
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+			};
+			
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				return o;
+			}
+
+			fixed4 frag (v2f i) : COLOR
+			{				
+				return 1;
+			}
+			ENDCG
+		}
+
+		//for command buffer opaque
+		Pass
+		{
+			cull off
+			// ZWrite off
+			ZTest off
+			CGPROGRAM
+
+			#pragma vertex vert
+			#pragma fragment frag
+			#include "UnityCG.cginc"
+
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+			};
+			
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				return o;
+			}
+
+			fixed4 frag (v2f i) : COLOR
+			{				
+				return 1;
+			}
+			ENDCG
+		}
+
+
+		Pass
+		{
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			#include "UnityCG.cginc"
+			
+			sampler2D _MainTex;
+
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+			};
+			
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = v.texcoord.xy;
+				return o;
+			}
+			
+			fixed4 frag (v2f i) : COLOR
+			{
+				fixed4 color = tex2D(_MainTex,i.uv);
+				 if (distance(color.rgb,0) <= 0.000001)
+				 	color = 0;
+				 else
+				 	color = 1;
+				return color;
+			}
+			ENDCG
+		}
+
+
+
 	}
 
+	//for replace shader
 	SubShader
 	{ 
 		Tags{ "RenderType" = "Opaque"  }

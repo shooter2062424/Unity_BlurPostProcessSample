@@ -8,6 +8,7 @@
 	{
 		Tags{ "RenderType" = "GrabAlpha"  }
 
+		//alpha depth
 		Pass 
 		{
 			ColorMask 0
@@ -43,6 +44,14 @@
 			}
 			ENDCG
 		}
+
+		//opaque depth
+		Pass 
+		{
+			ColorMask 0
+			ZWrite On 
+		}
+
 	}
 
 	SubShader 
