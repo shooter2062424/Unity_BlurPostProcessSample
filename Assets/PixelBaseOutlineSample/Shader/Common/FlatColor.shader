@@ -35,7 +35,7 @@
 			fixed4 frag (v2f i) : COLOR
 			{
 				fixed4 color = tex2D(_MainTex,i.uv);
-				 if (distance(color.a,0) <= 0.000001)
+				 if (color.r <= 0.000001)
 				 	color = 0;
 				 else
 				 	color = 1;
@@ -125,9 +125,6 @@
 		//for command buffer opaque
 		Pass
 		{
-			cull off
-			// ZWrite off
-			ZTest off
 			CGPROGRAM
 
 			#pragma vertex vert

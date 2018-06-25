@@ -108,7 +108,7 @@ public class OutlineCommandBuffer : MonoBehaviour
         DrawBuffer();
         AttachToRawImage();
     }
-    void Start()
+    void Awake()
     {
         Init();
     }
@@ -118,11 +118,6 @@ public class OutlineCommandBuffer : MonoBehaviour
         if (Instance != this) Destroy(this);
         if (isRuntime) return;
         isRuntime = true;
-
-        transparent.enabled = false;
-
-        buffer = new CommandBuffer();
-        Camera.main.AddCommandBuffer(bufferEvent,buffer);
 
         postMat = new Material(Shader.Find("Hide/OutlinePostprocess"));
         flatColor = new Material(Shader.Find("Hide/FlatColor"));
@@ -134,12 +129,79 @@ public class OutlineCommandBuffer : MonoBehaviour
         intensityID = Shader.PropertyToID("_Intensity");
         outlineColorID = Shader.PropertyToID("_OutlineColor");
 
-        maskTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.R8);
+        maskTexture = RenderTexture.GetTemporary(Screen.width / ResolutionReduce, Screen.height / ResolutionReduce, 0, RenderTextureFormat.R8);
+
+        buffer = new CommandBuffer();
+        buffer.name = "Outline";
         OnValidate();
 
+        // OnEnable();
+    }
 
-        buffer.name = "Outline";
+    void DrawBuffer()
+    {
+        buffer.Clear(); //before new draw,must be clear buffer first.
+        buffer.SetRenderTarget(maskTexture);  
+        buffer.ClearRenderTarget(true, true, Color.black,0);//clear rt
+
+        buffer.SetRenderTarget(maskTexture,BuiltinRenderTextureType.ResolvedDepth);//grab depth
+        
+        //draw opaque objects
+        buffer.DrawRenderer(opaque,flatColor,0,3);
+
+        //draw transparent objects
+        var mesh = transparent.GetComponent<MeshFilter>().mesh;
+        for (int i = 0; i < mesh.subMeshCount; i++)
+        {
+            buffer.DrawRenderer(transparent,transparent.materials[i],i,4); 
+        }
+
+        //draw rt
+        postMat.SetTexture(maskMapID, maskTexture); // will not changed.
+        buffer.Blit(maskTexture,tempRT1,flatColor,0);
+        buffer.Blit(tempRT1,maskTexture);
+        buffer.Blit(KawaseBlur(tempRT1, tempRT2),BuiltinRenderTextureType.CameraTarget,postMat,1);//clip mask
+    }
+
+
+    void OnEnable() 
+    {
+        maskTexture = RenderTexture.GetTemporary(Screen.width / ResolutionReduce, Screen.height / ResolutionReduce, 0, RenderTextureFormat.R8);
+        Camera.main.AddCommandBuffer(bufferEvent,buffer);
         DrawBuffer();
+    }
+
+    void OnDisable()  
+    {  
+        buffer.Clear();  
+        Camera.main.RemoveCommandBuffer(bufferEvent, buffer); 
+
+        RenderTexture.ReleaseTemporary(maskTexture);
+        RenderTexture.ReleaseTemporary(tempRT1);
+        RenderTexture.ReleaseTemporary(tempRT2); 
+    }  
+
+    void AttachToRawImage()
+    {
+        try
+        {
+            mask.texture = maskTexture;
+            temp1.texture = tempRT1;
+            temp2.texture = tempRT2;
+        }
+        catch { }
+    }
+    void GetTempRenderTexture()
+    {
+        // maskTexture = RenderTexture.GetTemporary(Screen.width / ResolutionReduce, Screen.height / ResolutionReduce, 0, RenderTextureFormat.R8);
+        tempRT1 = RenderTexture.GetTemporary(maskTexture.width / ResolutionReduce , maskTexture.height / ResolutionReduce, 0, RenderTextureFormat.R8);
+        tempRT2 = RenderTexture.GetTemporary(maskTexture.width / ResolutionReduce, maskTexture.height / ResolutionReduce, 0, RenderTextureFormat.R8);
+    }
+
+    void ClearBuffer(RenderTexture rt)
+    {
+        buffer.SetRenderTarget(maskTexture);  
+        buffer.ClearRenderTarget(true, true, Color.black);//clear rt
     }
 
     RenderTexture KawaseBlur(RenderTexture from, RenderTexture to)
@@ -153,64 +215,6 @@ public class OutlineCommandBuffer : MonoBehaviour
             swich = !swich;
         }
         return swich ? from : to;
-    }
-
-
-    void DrawBuffer()
-    {
-        buffer.Clear(); //must be clear first.
-        buffer.SetRenderTarget(maskTexture);  
-        buffer.ClearRenderTarget(true, true, Color.black);//clear rt
-
-        buffer.SetRenderTarget(maskTexture,BuiltinRenderTextureType.ResolvedDepth);//grab depth
-        //draw objects
-        buffer.DrawRenderer(opaque,flatColor,0,2);
-        for (int i = 0; i < transparent.GetComponent<MeshFilter>().mesh.subMeshCount; i++)
-        {
-            buffer.DrawRenderer(transparent,flatColor,i,4); 
-        }
-
-        //draw rt
-        // buffer.SetGlobalTexture(maskMapID,maskTexture);
-        postMat.SetTexture(maskMapID, maskTexture); // will not changed.
-        buffer.Blit(maskTexture,tempRT1);
-        buffer.Blit(KawaseBlur(tempRT1, tempRT2),BuiltinRenderTextureType.CameraTarget,postMat,1);//clip mask
-    }
-
-    void OnDisable()  
-    {  
-        buffer.Clear();  
-        Camera.main.RemoveCommandBuffer(bufferEvent, buffer);  
-    }  
-
-    void AttachToRawImage()
-    {
-        try
-        {
-            mask.texture = maskTexture;
-            temp1.texture = tempRT1;
-            temp2.texture = tempRT2;
-        }
-        catch { }
-    }
-
-    void OnDestroy()
-    {
-        RenderTexture.ReleaseTemporary(tempRT1);
-        RenderTexture.ReleaseTemporary(tempRT2);
-    }
-
-    void GetTempRenderTexture()
-    {
-        OnDestroy();
-        tempRT1 = RenderTexture.GetTemporary(maskTexture.width / resolutionReduce, maskTexture.height / resolutionReduce, 0, RenderTextureFormat.R8);
-        tempRT2 = RenderTexture.GetTemporary(maskTexture.width / resolutionReduce, maskTexture.height / resolutionReduce, 0, RenderTextureFormat.R8);
-    }
-
-    void ClearBuffer(RenderTexture rt)
-    {
-        buffer.SetRenderTarget(maskTexture);  
-        buffer.ClearRenderTarget(true, true, Color.black);//clear rt
     }
 
 }
