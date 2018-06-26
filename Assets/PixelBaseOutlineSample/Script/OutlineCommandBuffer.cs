@@ -138,10 +138,11 @@ public class OutlineCommandBuffer : MonoBehaviour
         buffer.DrawRenderer(opaque,flatColor,0,0);
 
         //draw transparent objects
-        var mesh = transparent.GetComponent<MeshFilter>().mesh;
-        for (int i = 0; i < mesh.subMeshCount; i++)
+        var mesh = transparent.GetComponent<MeshFilter>().sharedMesh;
+        Debug.Log(transparent.GetComponent<MeshRenderer>().subMeshStartIndex);
+        for (int i = 0; i < transparent.materials.Length; i++)
         {
-            buffer.DrawRenderer(transparent,transparent.materials[i],i,0); 
+            buffer.DrawRenderer(transparent,transparent.materials[i],transparent.GetComponent<MeshRenderer>().subMeshStartIndex+i,0); 
         }
 
         //copy depth map to mask map
