@@ -1,4 +1,4 @@
-Shader "Hide/GaussBlurPostProcess"
+Shader "Hidden/GaussBlurPostProcess"
 {
 	Properties
 	{

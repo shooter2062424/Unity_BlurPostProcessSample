@@ -26,7 +26,7 @@ public class KawaseBlurCommandBuffer : MonoBehaviour {
         _Temp2 = Shader.PropertyToID("_Temp2");
         _Offset = Shader.PropertyToID("_Offset");
 
-        blur = new Material(Shader.Find("Hide/KawaseBlurPostProcess"));
+        blur = new Material(Shader.Find("Hidden/KawaseBlurPostProcess"));
         blur.hideFlags = HideFlags.HideAndDontSave;
     }
 

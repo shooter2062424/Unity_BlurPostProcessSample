@@ -21,13 +21,13 @@ public class BlurPostProcess : MonoBehaviour {
             switch (type)
             {
                 case Kernel.Gauss:
-                    blur = new Material(Shader.Find("Hide/GaussBlurPostProcess"));
+                    blur = new Material(Shader.Find("Hidden/GaussBlurPostProcess"));
                     break;
                 case Kernel.Kawase:
-                    blur = new Material(Shader.Find("Hide/KawaseBlurPostProcess"));
+                    blur = new Material(Shader.Find("Hidden/KawaseBlurPostProcess"));
                     break;
                 case Kernel.Dual:
-                    blur = new Material(Shader.Find("Hide/DualBlurPostProcess"));
+                    blur = new Material(Shader.Find("Hidden/DualBlurPostProcess"));
                     break;
             }
         }

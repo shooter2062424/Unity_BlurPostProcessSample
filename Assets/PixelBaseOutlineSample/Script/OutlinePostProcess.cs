@@ -105,10 +105,10 @@ public class OutlinePostProcess : MonoBehaviour {
         }
 
         postProcessCam = Camera.main;
-        postMat = new Material(Shader.Find("Hide/OutlinePostprocess"));
-        flatColor = new Material(Shader.Find("Hide/FlatColor"));
-        grabDepth = new Material(Shader.Find("Hide/GrabDepth"));
-        blur = new Material(Shader.Find("Hide/KawaseBlurPostProcess"));
+        postMat = new Material(Shader.Find("Hidden/OutlinePostprocess"));
+        flatColor = new Material(Shader.Find("Hidden/FlatColor"));
+        grabDepth = new Material(Shader.Find("Hidden/GrabDepth"));
+        blur = new Material(Shader.Find("Hidden/KawaseBlurPostProcess"));
 
         //translate string to ID , better speed.
         offsetID = Shader.PropertyToID("_Offset");

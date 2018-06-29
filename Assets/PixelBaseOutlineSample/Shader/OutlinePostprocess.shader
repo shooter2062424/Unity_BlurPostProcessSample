@@ -1,4 +1,4 @@
-﻿Shader "Hide/OutlinePostprocess"
+﻿Shader "Hidden/OutlinePostprocess"
 {
 	Properties
 	{

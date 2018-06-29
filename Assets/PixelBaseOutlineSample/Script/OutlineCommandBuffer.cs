@@ -4,31 +4,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
 
+
+[ExecuteInEditMode,ImageEffectAllowedInSceneView]
 public class OutlineCommandBuffer : MonoBehaviour 
 {
-    static private OutlineCommandBuffer instance;
-    static public OutlineCommandBuffer Instance
-    {
-        get
-        {
-            if (!instance)
-            {
-                instance = FindObjectOfType(typeof(OutlineCommandBuffer)) as OutlineCommandBuffer;
-
-                if (!instance)
-                    instance = cam.gameObject.AddComponent<OutlineCommandBuffer>();
-                instance.Init();
-            }
-            return instance;
-        }
-        private set
-        {
-            if (value == null)
-                Destroy(instance);
-            instance = value;
-        }
-    }
-    static Camera cam;
+    Camera cam;
 
     [SerializeField]
     private Color outlineColor = new Color(1,.2f,0,1);
@@ -68,42 +48,49 @@ public class OutlineCommandBuffer : MonoBehaviour
     }
 
     int offsetID, maskMapID, intensityID,outlineColorID,blur1ID,blur2ID,depthMaskID;
-    bool isRuntime;
-
-    // [SerializeField]
-    Material postMat,flatColor,blur;
+    
     [SerializeField]
-
-    Renderer opaque,transparent;
-
+    Material postMat,flatColor,blur;
+    
+    [SerializeField]
     CommandBuffer buffer;
 
     public CameraEvent bufferEvent = CameraEvent.AfterForwardAlpha;
 
+#if UNITY_EDITOR
     void OnValidate()
     {
-        if (!isRuntime) return;
         OutlineColor = outlineColor;
         DownScale = downScale;
         ColorIntensity = colorIntensity;
-        DrawBuffer();
     }
-    void Awake()
+    
+#endif
+
+    void OnEnable() 
     {
         Init();
+
     }
 
+    void OnDisable()  
+    {  
+        cam.RemoveCommandBuffer(bufferEvent,buffer);
+    }  
+
+    void OnPreRender() {
+         DrawBuffer();
+    }
+
+    [SerializeField]
+    int gridcount = 10;
     void Init()
     {
-        if (Instance != this) Destroy(this);
-        if (isRuntime) return;
-        isRuntime = true;
-
         cam = GetComponent<Camera>();
 
-        postMat = new Material(Shader.Find("Hide/OutlineCommandBuffer"));
-        flatColor = new Material(Shader.Find("Hide/FlatColor"));
-        blur = new Material(Shader.Find("Hide/KawaseBlurPostProcess"));
+        postMat = new Material(Shader.Find("Hidden/OutlineCommandBuffer"));
+        flatColor = new Material(Shader.Find("Hidden/FlatColor"));
+        blur = new Material(Shader.Find("Hidden/KawaseBlurPostProcess"));
 
         //translate string to ID , better speed.
         offsetID = Shader.PropertyToID("_Offset");
@@ -114,35 +101,69 @@ public class OutlineCommandBuffer : MonoBehaviour
         blur2ID = Shader.PropertyToID("blur2");
         depthMaskID = Shader.PropertyToID("depthMask");
 
-        buffer = new CommandBuffer();
-        buffer.name = "Outline";
-        OnValidate();
-        // OnEnable();
+        buffer = new CommandBuffer() { name = "Outline" };
+        cam.AddCommandBuffer(bufferEvent,buffer);
     }
-    
-    void DrawBuffer()
+
+    public void DrawBuffer()
     {
+        if (buffer == null) return;
+
         buffer.Clear(); //before new draw,must be clear buffer first.
-        
+
+        //setup setting;
         var scale = -(1 << DownScale);
 
-		buffer.GetTemporaryRT (blur1ID, scale, scale, 0, FilterMode.Bilinear);
-		buffer.GetTemporaryRT (blur2ID, scale, scale, 0, FilterMode.Bilinear);
-        buffer.GetTemporaryRT (depthMaskID, -1, -1, 0, FilterMode.Bilinear); // must be fit screen size
+		buffer.GetTemporaryRT (blur1ID, scale, scale, 0, FilterMode.Bilinear,RenderTextureFormat.R8);
+		buffer.GetTemporaryRT (blur2ID, scale, scale, 0, FilterMode.Bilinear,RenderTextureFormat.R8);
+        buffer.GetTemporaryRT (depthMaskID, -1, -1, 0, FilterMode.Bilinear,RenderTextureFormat.R8); // must be fit screen size
         
         buffer.SetRenderTarget(depthMaskID);  
         buffer.ClearRenderTarget(true, true, Color.black);//clear rt
         buffer.SetRenderTarget(depthMaskID,BuiltinRenderTextureType.ResolvedDepth);//grab depth
         
-        //draw opaque objects
-        buffer.DrawRenderer(opaque,flatColor,0,0);
-
-        //draw transparent objects
-        var mesh = transparent.GetComponent<MeshFilter>().sharedMesh;
-        Debug.Log(transparent.GetComponent<MeshRenderer>().subMeshStartIndex);
-        for (int i = 0; i < transparent.materials.Length; i++)
+        var targets = OutlineManager.Instance.objs;
+        var count = targets.Count;
+        for (int i = 0; i < count; i++) 
         {
-            buffer.DrawRenderer(transparent,transparent.materials[i],transparent.GetComponent<MeshRenderer>().subMeshStartIndex+i,0); 
+            var renderer = targets[i].renderer;
+            // if (!context.CheckVisible (renderer)) continue;
+
+            var mats = targets[i].sharedMaterials;
+            var length = mats.Length;
+            if (targets[i]._transparent) {
+                //draw transparent objects
+                for (int index = 0; index < length; index++) {
+#if UNITY_2018
+                    buffer.DrawRenderer (renderer, mats[index], renderer.subMeshStartIndex + index, 0);
+#else
+                    buffer.DrawRenderer (renderer, mats[index], index, 0);
+#endif
+                }
+
+            } else {
+                //draw opaque objects
+                for (int index = 0; index < length; index++) 
+                {
+                    if (targets[i]._occlusion)
+                    {
+                    #if UNITY_2018
+                        buffer.DrawRenderer (renderer, flatColor, renderer.subMeshStartIndex + index, 0);
+                        #else
+                        buffer.DrawRenderer (renderer, flatColor, index, 0);
+                    #endif
+                    }
+                    else
+                    {
+                    #if UNITY_2018
+                        buffer.DrawRenderer (renderer, flatColor, renderer.subMeshStartIndex + index, 1);
+                        #else
+                        buffer.DrawRenderer (renderer, flatColor, index, 1);
+                    #endif
+
+                    }
+                }
+            }
         }
 
         //copy depth map to mask map
@@ -158,19 +179,6 @@ public class OutlineCommandBuffer : MonoBehaviour
         buffer.ReleaseTemporaryRT(blur2ID);
     }
 
-
-    void OnEnable() 
-    {
-        cam.AddCommandBuffer(bufferEvent,buffer);
-        DrawBuffer();
-    }
-
-    void OnDisable()  
-    {  
-        buffer.Clear();  
-        cam.RemoveCommandBuffer(bufferEvent, buffer); 
-    }  
-
     int KawaseBlur(int from, int to)
     {
         bool swich = true;
@@ -183,5 +191,25 @@ public class OutlineCommandBuffer : MonoBehaviour
         }
         return swich ? from : to;
     }
+}
 
+
+public class OutlineManager  
+{
+    static private OutlineManager instance;
+    static public OutlineManager Instance
+    {
+        get
+        {
+            if (instance == null)
+                instance = new OutlineManager();
+            return instance;
+        }
+        private set
+        {
+            instance = value;
+        }
+        
+    }
+    public List<OutlineObject> objs = new List<OutlineObject>();
 }

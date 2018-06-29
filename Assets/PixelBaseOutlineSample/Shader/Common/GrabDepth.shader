@@ -1,4 +1,4 @@
-﻿Shader "Hide/GrabDepth"
+﻿Shader "Hidden/GrabDepth"
 {
 	Properties {
 		_MainTex ("Main", 2D) = "white" {}

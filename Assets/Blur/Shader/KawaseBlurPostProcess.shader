@@ -1,4 +1,4 @@
-Shader "Hide/KawaseBlurPostProcess"
+Shader "Hidden/KawaseBlurPostProcess"
 {
 	Properties
 	{

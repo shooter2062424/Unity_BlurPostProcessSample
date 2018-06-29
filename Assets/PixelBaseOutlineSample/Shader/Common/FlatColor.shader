@@ -1,4 +1,4 @@
-﻿Shader "Hide/FlatColor"
+﻿Shader "Hidden/FlatColor"
 {
 	Properties {
 		_MainTex ("Main", 2D) = "white" {}
@@ -11,6 +11,7 @@
 		//for command buffer transparent
 		Pass
 		{
+			Cull off
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
@@ -43,6 +44,44 @@
 			}
 			ENDCG
 		}
+
+		//zTest off
+		Pass
+		{
+			ZTest off ZWrite off Cull off
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			#include "UnityCG.cginc"
+			
+			sampler2D _MainTex;
+
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+			};
+			
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = v.texcoord.xy;
+				return o;
+			}
+			
+			fixed4 frag (v2f i) : COLOR
+			{
+				fixed4 color = tex2D(_MainTex,i.uv);
+				 if (color.r <= 0.000001)
+				 	color = 0;
+				 else
+				 	color = 1;
+				return color;
+			}
+			ENDCG
+		}
+
 	}
 
 	//for replace shader
