@@ -10,6 +10,9 @@ public class OutlineCommandBuffer : MonoBehaviour
 {
     Camera cam;
 
+    [Tooltip("Trun ON obscured outline cull,but this mode will be more expensive.")]
+    public bool occlusionCullModeOn;
+
     [SerializeField]
     private Color outlineColor = new Color(1,.2f,0,1);
     public Color OutlineColor
@@ -22,7 +25,7 @@ public class OutlineCommandBuffer : MonoBehaviour
         }
     }
 
-    [SerializeField,Range(0, 4)]
+    [SerializeField,Range(0, 4),Tooltip("Reduce blured texture size,more value will be cheaper.")]
     private int downScale = 0;
     public int DownScale
     {
@@ -32,10 +35,10 @@ public class OutlineCommandBuffer : MonoBehaviour
             downScale = value;
         }
     }
-    [SerializeField, Range(1, 10)]
+    [SerializeField, Range(1, 10),Tooltip("Blur interation count,more count will be more blurry、smoothly,performance also more expensive.")]
     private int interation = 1;
 
-    [SerializeField,Range(0, 10)]
+    [SerializeField,Range(0, 20)]
     private float offset = 1, colorIntensity = 3;
     public float ColorIntensity
     {
@@ -46,10 +49,7 @@ public class OutlineCommandBuffer : MonoBehaviour
             postMat.SetFloat(intensityID, value);
         }
     }
-
-    int offsetID, maskMapID, intensityID,outlineColorID,blur1ID,blur2ID,depthMaskID;
-    
-    [SerializeField]
+    [SerializeField,HideInInspector]
     Material postMat,flatColor,blur;
     
     [SerializeField]
@@ -60,6 +60,7 @@ public class OutlineCommandBuffer : MonoBehaviour
 #if UNITY_EDITOR
     void OnValidate()
     {
+        // Init();
         OutlineColor = outlineColor;
         DownScale = downScale;
         ColorIntensity = colorIntensity;
@@ -70,6 +71,8 @@ public class OutlineCommandBuffer : MonoBehaviour
     void OnEnable() 
     {
         Init();
+        buffer = new CommandBuffer() { name = "Outline" };
+        cam.AddCommandBuffer(bufferEvent,buffer);
 
     }
 
@@ -82,8 +85,7 @@ public class OutlineCommandBuffer : MonoBehaviour
          DrawBuffer();
     }
 
-    [SerializeField]
-    int gridcount = 10;
+    int offsetID, maskMapID, intensityID,outlineColorID,blur1ID,blur2ID,depthMaskID,maskID;
     void Init()
     {
         cam = GetComponent<Camera>();
@@ -100,9 +102,7 @@ public class OutlineCommandBuffer : MonoBehaviour
         blur1ID = Shader.PropertyToID("blur1");
         blur2ID = Shader.PropertyToID("blur2");
         depthMaskID = Shader.PropertyToID("depthMask");
-
-        buffer = new CommandBuffer() { name = "Outline" };
-        cam.AddCommandBuffer(bufferEvent,buffer);
+        maskID = Shader.PropertyToID("mask");
     }
 
     public void DrawBuffer()
@@ -117,59 +117,39 @@ public class OutlineCommandBuffer : MonoBehaviour
 		buffer.GetTemporaryRT (blur1ID, scale, scale, 0, FilterMode.Bilinear,RenderTextureFormat.R8);
 		buffer.GetTemporaryRT (blur2ID, scale, scale, 0, FilterMode.Bilinear,RenderTextureFormat.R8);
         buffer.GetTemporaryRT (depthMaskID, -1, -1, 0, FilterMode.Bilinear,RenderTextureFormat.R8); // must be fit screen size
-        
+
         buffer.SetRenderTarget(depthMaskID);  
         buffer.ClearRenderTarget(true, true, Color.black);//clear rt
-        buffer.SetRenderTarget(depthMaskID,BuiltinRenderTextureType.ResolvedDepth);//grab depth
-        
+
+        int lastMask = depthMaskID;
+        if (occlusionCullModeOn)
+        {
+            buffer.GetTemporaryRT (maskID, -1, -1, 0, FilterMode.Bilinear,RenderTextureFormat.R8);
+            buffer.SetRenderTarget(maskID);  
+            buffer.ClearRenderTarget(true, true, Color.black);//clear rt
+            lastMask = maskID;
+        }
+
         var targets = OutlineManager.Instance.objs;
         var count = targets.Count;
-        for (int i = 0; i < count; i++) 
+        for (int i = 0; i < count; i++)
         {
-            var renderer = targets[i].renderer;
-            // if (!context.CheckVisible (renderer)) continue;
-
             var mats = targets[i].sharedMaterials;
             var length = mats.Length;
-            if (targets[i]._transparent) {
-                //draw transparent objects
-                for (int index = 0; index < length; index++) {
-#if UNITY_2018
-                    buffer.DrawRenderer (renderer, mats[index], renderer.subMeshStartIndex + index, 0);
-#else
-                    buffer.DrawRenderer (renderer, mats[index], index, 0);
-#endif
-                }
-
-            } else {
-                //draw opaque objects
+            if (targets[i]._transparent) //draw transparent objects
+            {
                 for (int index = 0; index < length; index++) 
-                {
-                    if (targets[i]._occlusion)
-                    {
-                    #if UNITY_2018
-                        buffer.DrawRenderer (renderer, flatColor, renderer.subMeshStartIndex + index, 0);
-                        #else
-                        buffer.DrawRenderer (renderer, flatColor, index, 0);
-                    #endif
-                    }
-                    else
-                    {
-                    #if UNITY_2018
-                        buffer.DrawRenderer (renderer, flatColor, renderer.subMeshStartIndex + index, 1);
-                        #else
-                        buffer.DrawRenderer (renderer, flatColor, index, 1);
-                    #endif
-
-                    }
-                }
+                    DrawSubmesh(targets[i],index,mats[index]);
+            } 
+            else //draw opaque objects
+            {
+                for (int index = 0; index < length; index++) 
+                    DrawSubmesh(targets[i],index,flatColor);
             }
         }
 
-        //copy depth map to mask map
-        buffer.SetGlobalTexture(maskMapID,depthMaskID);
-
-        //draw blur
+        // //copy depth map to mask map
+        buffer.SetGlobalTexture(maskMapID, lastMask);
         buffer.Blit(depthMaskID,blur1ID,flatColor,0); //copy
         buffer.Blit(KawaseBlur(blur1ID, blur2ID),BuiltinRenderTextureType.CameraTarget,postMat,0);//clip mask
 
@@ -177,6 +157,26 @@ public class OutlineCommandBuffer : MonoBehaviour
         buffer.ReleaseTemporaryRT(depthMaskID);
         buffer.ReleaseTemporaryRT(blur1ID);
         buffer.ReleaseTemporaryRT(blur2ID);
+        buffer.ReleaseTemporaryRT(maskID);
+    }
+
+
+    void DrawSubmesh(OutlineObject obj,int subMeshIndex,Material mat)
+    {
+        #if UNITY_2018
+            subMeshIndex += obj.renderer.subMeshStartIndex;
+        #endif
+
+        int pass = obj._transparent ? 0 : obj._occlusion ? 0 : 1;
+        // draw depth mask
+        buffer.SetRenderTarget(depthMaskID,BuiltinRenderTextureType.ResolvedDepth);//grab depth               
+        buffer.DrawRenderer (obj.renderer, mat, subMeshIndex,pass);
+        if (occlusionCullModeOn)
+        {
+            //draw non depth mask
+            buffer.SetRenderTarget(maskID,BuiltinRenderTextureType.ResolvedDepth);//grab depth   
+            buffer.DrawRenderer (obj.renderer, mat, subMeshIndex, obj._transparent ? 0 : obj._occlusionCull ? 1:0);
+        }
     }
 
     int KawaseBlur(int from, int to)
