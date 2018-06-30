@@ -15,9 +15,7 @@ public class FPS : MonoBehaviour {
     const float updateTime = .5f;
     float currentTime;
 
-    void Start () {
-		
-	}
+    public UnityEngine.UI.Text text;
 
     void Update()
     {
@@ -44,8 +42,12 @@ public class FPS : MonoBehaviour {
                 lowestFPS = fpsData[i];
         }
         averageFPS = sum / sampleCount;
+
+        if (text != null)
+            text.text = string.Format("Average FPS:{0}",averageFPS.ToString());
     }
 
+    #if UNITY_EDITOR
     void OnGUI()
     {
         GUILayout.BeginArea(new Rect(0, 0, 150, 120));
@@ -60,4 +62,5 @@ public class FPS : MonoBehaviour {
 
         GUILayout.EndArea();
     }
+    #endif
 }
