@@ -33,8 +33,9 @@ public class OutlineObject : MonoBehaviour {
 	void OnEnable() 
 	{
 		renderer = GetComponent<Renderer>();
-		subMeshIndex = renderer is SkinnedMeshRenderer ? 0 : ((MeshRenderer)renderer).subMeshStartIndex;
-		
+		#if UNITY_2018
+			subMeshIndex = renderer is SkinnedMeshRenderer ? 0 : ((MeshRenderer)renderer).subMeshStartIndex;
+		#endif
 		this.sharedMaterials = renderer.sharedMaterials;
 		OutlineManager.Instance.objs.Add(this);
 	}
