@@ -16,6 +16,10 @@ public class OutlineObject : MonoBehaviour {
 	[HideInInspector]
 	public Material[] sharedMaterials;
 
+	[HideInInspector]
+	public int subMeshIndex = 0;
+	
+
 #if UNITY_EDITOR
         void OnValidate () 
 		{
@@ -29,9 +33,10 @@ public class OutlineObject : MonoBehaviour {
 	void OnEnable() 
 	{
 		renderer = GetComponent<Renderer>();
+		subMeshIndex = renderer is SkinnedMeshRenderer ? 0 : ((MeshRenderer)renderer).subMeshStartIndex;
+		
 		this.sharedMaterials = renderer.sharedMaterials;
 		OutlineManager.Instance.objs.Add(this);
-
 	}
 
 	void OnDisable()

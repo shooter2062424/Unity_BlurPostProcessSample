@@ -164,7 +164,7 @@ public class OutlineCommandBuffer : MonoBehaviour
     void DrawSubmesh(OutlineObject obj,int subMeshIndex,Material mat)
     {
         #if UNITY_2018
-            subMeshIndex += obj.renderer.subMeshStartIndex;
+            subMeshIndex += obj.subMeshIndex;
         #endif
 
         int pass = obj._transparent ? 0 : obj._occlusion ? 0 : 1;
