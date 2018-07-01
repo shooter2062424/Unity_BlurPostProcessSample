@@ -1,5 +1,8 @@
 # Unity_BlurPostProcessSample
 Test different kernel filter,and enhance the outline effect.
+
+![image](https://github.com/vux427/Unity_BlurPostProcessSample/blob/master/messageImage_1530386447050.jpg)
+
 ## Kernels 
 1. Gauss
 2. Kawase
